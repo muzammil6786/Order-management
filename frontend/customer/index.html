@@ -16,7 +16,7 @@
     <script>
         async function fetchOrder() {
             const id = document.getElementById('orderId').value;
-            const res = await fetch(`http://localhost:5000/api/orders/${id}`);
+            const res = await fetch(`https://order-management-1-z6aj.onrender.com/api/orders/${id}`);
             const data = await res.json();
             const output = document.getElementById('orderResult');
 
