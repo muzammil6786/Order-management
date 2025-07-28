@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div style="display: flex; align-items: center; justify-content : center;">
+        <h2>Orders Management System</h2>
+    </div>
+   
+
+    <select id="filterStatus">
+        <option value="">All</option>
+        <option>PENDING</option>
+        <option>PAID</option>
+        <option>FULFILLED</option>
+        <option>CANCELLED</option>
+    </select>
+
+    <button onclick="loadOrders()">Apply Filter</button>
+
+    <div id="orders"></div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        const socket = io("http://localhost:5000");
+
+        socket.on("connect", () => {
+            console.log("Connected to server:", socket.id);
+        });
+
+        socket.on("order-status-updated", (data) => {
+            const statusEl = document.getElementById(`order-${data.orderId}-status`);
+            const stageEl = document.getElementById(`order-${data.orderId}-stage`);
+            const customerEl = document.getElementById(`order-${data.orderId}-customer`);
+
+            if (statusEl) statusEl.textContent = data.status;
+            if (stageEl) stageEl.textContent = data.trackingStage;
+            if (customerEl) customerEl.textContent = data.customer || "N/A";
+        });
+
+        async function loadOrders() {
+            const status = document.getElementById('filterStatus').value;
+            const url = status ? `http://localhost:5000/api/orders?status=${status}` : `http://localhost:5000/api/orders`;
+            const res = await fetch(url);
+            const orders = await res.json();
+
+            const container = document.getElementById('orders');
+            container.innerHTML = orders.map(o => `
+        <div class="order-card">
+          <h4>Order ID: ${o._id}</h4>
+          <p>Status:
+            <select onchange="updateOrderStatus('${o._id}', this.value)" id="order-${o._id}-status">
+              ${['PENDING', 'PAID', 'FULFILLED', 'CANCELLED'].map(s => `
+                <option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>
+              `).join('')}
+            </select>
+          </p>
+          <p>Stage: <span id="order-${o._id}-stage">${o.trackingStage || '-'}</span></p>
+          <p>Customer: <span id="order-${o._id}-customer">${o.customer?.name || '-'}</span></p>
+        </div>
+      `).join('');
+        }
+
+        async function updateOrderStatus(orderId, status) {
+            try {
+                const res = await fetch(`http://localhost:5000/api/orders/${orderId}/status`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    console.log('Status updated:', data);
+                } else {
+                    console.error('Failed to update:', data.message);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+
+        loadOrders();
+    </script>
+</body>
+
+</html>
